@@ -25,12 +25,14 @@ export interface SnippetDownloaderSettings {
 	snippetList:SnippetRepo[];
 	excludedSnippet:string;
 	errorSnippet: string;
+	personalAccessToken?: string;
 }
 
 export const DEFAULT_SETTINGS: SnippetDownloaderSettings = {
 	snippetList: [],
 	excludedSnippet: "",
 	errorSnippet: "",
+	personalAccessToken: ""
 };
 
 function getDetailsState(name: string) {
@@ -85,6 +87,21 @@ export class SnippetDownloaderTabs extends PluginSettingTab {
 				link.innerText='You can check your regex here.';
 				link.href='https://regex101.com/';
 			})
+		})
+		
+		new Setting(containerEl)
+		.setName('Github token')
+		.setDesc('Enter a github token to unlock the rate limiting.')
+		.addText(t => {
+			t
+			.setPlaceholder('Personal access token')
+			.setValue(this.plugin.settings.personalAccessToken)
+			.onChange(async (v) => {
+				this.plugin.settings.personalAccessToken = v;
+				await this.plugin.saveSettings();
+			})
+
+			t.inputEl.type = "password"
 		})
 
 		new Setting(containerEl)

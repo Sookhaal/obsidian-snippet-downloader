@@ -1,12 +1,12 @@
-import {Octokit} from "@octokit/core";
+import { Octokit } from "@octokit/core";
 import { Base64 } from "js-base64";
 import { ResponseHeaders } from "@octokit/types";
-import {normalizePath, Vault, request} from "obsidian";
+import { normalizePath, Vault, request } from "obsidian";
 import {
 	SnippetDownloaderSettings,
 	SnippetInformation,
 } from "./settings";
-import {searchExcluded, basename} from "./utils";
+import { searchExcluded, basename } from "./utils";
 
 //@ts-ignore
 async function fetchListSnippet(repoRecur: { headers?: ResponseHeaders; status?: 200; url?: string; data: any; }, snippetList: SnippetInformation[], settings: SnippetDownloaderSettings, repoPath: string) {
@@ -23,18 +23,27 @@ async function fetchListSnippet(repoRecur: { headers?: ResponseHeaders; status?:
 	return snippetList;
 }
 
-async function grabLastCommitInfo(repoPath: string, filepath:string) {
-	const repoName = repoPath.replace('https://github.com/', '');
-	const url = `https://api.github.com/repos/${repoName}/commits?path=${encodeURIComponent(filepath)}&page=1&per_page=1`;
+async function grabLastCommitInfo(repoPath: string, filepath: string, personalAccessToken?: string) {
+	const octokit = new Octokit({
+		auth: personalAccessToken
+	});
 	try {
-		const response = await request({url:url})
-		return (response === "404: Not Found" ? null : JSON.parse(response));
+		const repo = repoPath.replace('https://github.com/', '')
+		const [owner, repoName] = repo.split('/')
+		const response = await octokit.request(`GET /repos/{owner}/{repo}/commits`, {
+			owner,
+			repo: repoName,
+			path: filepath,
+			page: 1,
+			per_page: 1,
+		})
+		return response.data
 	} catch (error) {
 		console.log("error in grabcommitinfo", error)
 	}
 }
 
-export async function grabLastCommitDate(repoPath:string, filepath:string) {
+export async function grabLastCommitDate(repoPath: string, filepath: string) {
 	const test = await grabLastCommitInfo(repoPath, filepath);
 	console.log(`Testing from ${repoPath} : ${filepath} => ${test[0].commit.author.date}`)
 	//@ts-ignore
@@ -47,7 +56,9 @@ export async function grabLastCommitDate(repoPath:string, filepath:string) {
 }
 
 export async function listSnippetfromRepo(repoPath: string, settings: SnippetDownloaderSettings): Promise<SnippetInformation[]> {
-	const octokit = new Octokit();
+	const octokit = new Octokit({
+		auth: settings.personalAccessToken
+	});
 	const repo = repoPath.replace('https://github.com/', '')
 	const owner = repo.split('/')[0]
 	const repoName = repo.split('/')[1]
@@ -60,42 +71,37 @@ export async function listSnippetfromRepo(repoPath: string, settings: SnippetDow
 			tree_sha: 'main',
 			recursive: "true"
 		});
+		console.log("repoRecur", repoRecur)
 		return await fetchListSnippet(repoRecur, snippetList, settings, repoPath);
-
 	} catch (e) {
-		try {
-			const repoRecur = await octokit.request('GET /repos/{owner}/{repo}/git/trees/{tree_sha}', {
-				owner: owner,
-				repo: repoName,
-				tree_sha: 'main',
-				recursive: "true"
-			});
-			return await fetchListSnippet(repoRecur, snippetList, settings, repoPath);
-		} catch (e) {
 			console.log(e)
 			return [];
-		}
 	}
 }
 
-export async function checkLastUpdate(snippetName:SnippetInformation, repoPath: string) {
-	const oldDate = new Date (snippetName.lastUpdate);
-	const newDate= new Date(await grabLastCommitDate(repoPath, snippetName.name));
+export async function checkLastUpdate(snippetName: SnippetInformation, repoPath: string) {
+	const oldDate = new Date(snippetName.lastUpdate);
+	const newDate = new Date(await grabLastCommitDate(repoPath, snippetName.name));
 	return (oldDate < newDate)
 }
 
-export async function downloadSnippet(repoPath: string, snippetName: string, vault:Vault) {
+export async function downloadSnippet(repoPath: string, snippetName: string, vault: Vault, settings: SnippetDownloaderSettings) {
 	const repo = repoPath.replace('https://github.com/', '')
 	const owner = repo.split('/')[0]
 	const repoName = repo.split('/')[1]
-	const octokit = new Octokit();
+	const octokit = new Octokit({
+		auth: settings.personalAccessToken
+	});
 	const fileName = basename(snippetName)
 	const filePath = normalizePath(vault.configDir + "/snippets/" + fileName)
 	try {
 		const file = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
 			owner: owner,
 			repo: repoName,
-			path: snippetName
+			path: snippetName,
+			headers: {
+				authorization: `Token ${settings.personalAccessToken}`,
+			}
 		});
 		console.log(file.status)
 		if (file.status === 200) {

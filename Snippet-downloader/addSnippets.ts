@@ -25,7 +25,7 @@ export async function addSnippet(repoPath: string, settings: SnippetDownloaderSe
 		})
 		const snippet = snippetList.find(snippet => snippet.repo === repoPath)
 		for (const snippetContents of snippet.snippetsContents) {
-			const success=await downloadSnippet(repoPath, snippetContents.name, vault)
+			const success=await downloadSnippet(repoPath, snippetContents.name, vault, settings)
 			if (!success) {
 				excludedSnippet += snippetContents.name.replace('.css', '') + ', ';
 				catchErrors.push(snippetContents.name.replace('.css', ''));
@@ -42,13 +42,13 @@ export async function addSnippet(repoPath: string, settings: SnippetDownloaderSe
 	return [snippetList, excludedSnippet]
 }
 
-export async function updateRepo(repoPath: string, snippetList: SnippetRepo[], vault: Vault, excludedSnippets: string, errorSnippets: string) {
+export async function updateRepo(repoPath: string, snippetList: SnippetRepo[], vault: Vault, excludedSnippets: string, errorSnippets: string, settings: SnippetDownloaderSettings) {
 	const snippet = snippetList.find(snippet => snippet.repo === repoPath);
 	if (snippet) {
 		for (const snippetContent of snippet.snippetsContents) {
 			if (await checkLastUpdate(snippetContent, repoPath) && (snippetContent.name !== 'obsidian.css') && (!searchExcluded(excludedSnippets, snippetContent.name)) && (!searchExcluded(errorSnippets, snippetContent.name)))
 			{
-				const successDownloaded=await downloadSnippet(repoPath, snippetContent.name, vault)
+				const successDownloaded=await downloadSnippet(repoPath, snippetContent.name, vault, settings)
 				if (successDownloaded) {
 					snippetContent.lastUpdate = await grabLastCommitDate(repoPath, snippetContent.name);
 				} else {
@@ -68,7 +68,7 @@ export async function updateSpecificSnippet(item: SnippetUpdate, settings: Snipp
 	const snippet = listSnippet.find(snippet => snippet.repo === item.repo);
 	const snippetsRep = snippet.snippetsContents.find(snippet => snippet.name === item.snippetPath);
 	if (await checkLastUpdate(snippetsRep, item.repo)) {
-		const successDownload = await downloadSnippet(item.repo, snippetsRep.name, this.app.vault);
+		const successDownload = await downloadSnippet(item.repo, snippetsRep.name, this.app.vault, settings);
 		if (successDownload) {
 			snippetsRep.lastUpdate = await grabLastCommitDate(item.repo, snippetsRep.name);
 			new Notice(`${basename(item.snippetPath)} has been updated 🎉`);

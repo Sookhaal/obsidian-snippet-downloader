@@ -33,10 +33,10 @@ Also, alternatively, you can use the settings tab to add a repository, delete a 
 
 ## Installation
 - Use [BRAT-42](https://github.com/TfTHacker/obsidian42-brat) to install the plugin.
-- Use the community plugin market.
+- Optionnaly: Add a github token with Repository Contents access set to Read-only.
 
 ## Developpements
-- `git clone git@github.com:Mara-Li/obsidian-snippet-downloader.git`
+- `git clone git@github.com:Sookhaal/obsidian-snippet-downloader.git`
 - `npm install`
 - `npm run dev`
 
